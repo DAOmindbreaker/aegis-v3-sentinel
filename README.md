@@ -1,118 +1,241 @@
-# Drosera Trap Foundry Template
+# 🛡️ AEGIS-V3 Sentinel
 
-This repo is for quickly bootstrapping a new Drosera project. It includes instructions for creating your first trap, deploying it to the Drosera network, and updating it on the fly.
+[![Drosera Network](https://img.shields.io/badge/Drosera-Network-6C47FF?style=for-the-badge&logo=ethereum&logoColor=white)](https://drosera.io)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.33-363636?style=for-the-badge&logo=solidity&logoColor=white)](https://soliditylang.org)
+[![Foundry](https://img.shields.io/badge/Built%20with-Foundry-FF6B35?style=for-the-badge)](https://getfoundry.sh)
+[![Network](https://img.shields.io/badge/Network-Hoodi%20Testnet-0052FF?style=for-the-badge)](https://hoodi.etherscan.io)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-[![view - Documentation](https://img.shields.io/badge/view-Documentation-blue?style=for-the-badge)](https://dev.drosera.io "Project documentation")
-[![Twitter](https://img.shields.io/twitter/follow/DroseraNetwork?style=for-the-badge)](https://x.com/DroseraNetwork)
+> **Lido V3 VaultHub Risk Sentinel** — Real-time on-chain monitoring for Lido V3 stVaults ecosystem, powered by [Drosera Network](https://drosera.io).
 
-## Configure dev environment
+---
 
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
+## 📌 Overview
 
-# The trap-foundry-template utilizes node modules for dependency management
-# install Bun (optional)
-curl -fsSL https://bun.sh/install | bash
+AEGIS-V3 is a production-grade [Drosera trap](https://docs.drosera.io) that continuously monitors the **Lido V3 VaultHub** smart contract for systemic risk signals. It samples vault health, tracks bad debt accumulation, detects protocol pauses, and monitors wstETH redemption rate degradation — all in a single, gas-optimized trap execution.
 
-# install node modules
-bun install
+Built for the Drosera Network's decentralized security layer, AEGIS-V3 enables automated incident response the moment on-chain conditions deteriorate.
 
-# install vscode (optional)
-# - add solidity extension JuanBlanco.solidity
+---
 
-# install drosera-cli
-curl -L https://app.drosera.io/install | bash
-droseraup
+## ⚡ Live Deployment (Hoodi Testnet)
+
+| Contract | Address | Explorer |
+|---|---|---|
+| **AegisV3Sentinel** (Trap) | `0x047aEdd2215C6E22E1a8128A9A98735FfF666aff` | [View ↗](https://hoodi.etherscan.io/address/0x047aEdd2215C6E22E1a8128A9A98735FfF666aff) |
+| **AegisV3Response** | `0x6A389da253A1D4B0fA5f5b0fe6843164398e9f45` | [View ↗](https://hoodi.etherscan.io/address/0x6A389da253A1D4B0fA5f5b0fe6843164398e9f45) |
+| **VaultHub** (Monitored) | `0x4C9fFC325392090F789255b9948Ab1659b797964` | [View ↗](https://hoodi.etherscan.io/address/0x4C9fFC325392090F789255b9948Ab1659b797964) |
+| **stETH** (Monitored) | `0x3508A952176b3c15387C97BE809eaffB1982176a` | [View ↗](https://hoodi.etherscan.io/address/0x3508A952176b3c15387C97BE809eaffB1982176a) |
+| **wstETH** (Monitored) | `0x7E99eE3C66636DE415D2d7C880938F2f40f94De4` | [View ↗](https://hoodi.etherscan.io/address/0x7E99eE3C66636DE415D2d7C880938F2f40f94De4) |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Drosera Network                          │
+│  ┌─────────────┐    attestation    ┌──────────────────────┐ │
+│  │  Operators  │◄─────────────────►│   Drosera Protocol   │ │
+│  └──────┬──────┘                   └──────────────────────┘ │
+│         │ execute every block                               │
+└─────────┼───────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│               AegisV3Sentinel (Trap)                        │
+│                                                             │
+│  collect()          shouldRespond()      shouldAlert()      │
+│  ┌──────────────┐   ┌──────────────┐    ┌──────────────┐   │
+│  │ Read on-chain│   │ Check A: Bad │    │ Future:      │   │
+│  │ state from:  │──►│ Debt > 0     │    │ Alert system │   │
+│  │ • VaultHub   │   │ Check B: Is  │    └──────────────┘   │
+│  │ • stETH      │   │ Paused?      │                       │
+│  │ • wstETH     │   │ Check C: 20% │                       │
+│  │ • 10 Vaults  │   │ Unhealthy    │                       │
+│  └──────────────┘   │ Check D: Rate│                       │
+│                     │ Drop >300bps │                       │
+│                     └──────┬───────┘                       │
+└────────────────────────────┼────────────────────────────────┘
+                             │ should_respond = true
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│               AegisV3Response (Response Contract)           │
+│                                                             │
+│  recordBadDebt()              → CRITICAL severity           │
+│  recordProtocolPause()        → CRITICAL severity           │
+│  recordVaultHealthDegradation() → HIGH severity             │
+│  recordRedemptionRateDrop()   → HIGH severity               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-open the VScode preferences and Select `Soldity: Change workpace compiler version (Remote)`
+---
 
-Select version `0.8.12`
+## 🔍 How It Works
 
-## Quick Start
+### Data Collection (`collect()`)
 
-The following drosera commands set the `DROSERA_PRIVATE_KEY` environment variable in the command line but you can also use a `.env` file to store the private key of the account you want to use to deploy the trap.
+Every block, the sentinel reads a comprehensive snapshot of the Lido V3 ecosystem:
 
-### Hello World Trap
-
-The drosera.toml file is configured to deploy a simple "Hello, World!" trap. Ensure the drosera.toml file is set to the following configuration:
-
-```toml
-response_contract = "0xdA890040Af0533D98B9F5f8FE3537720ABf83B0C"
-response_function = "helloworld(string)"
+```solidity
+struct AegisSnapshot {
+    uint256 vaultsCount;          // Total stVaults registered
+    uint256 badDebt;              // Bad debt pending internalization
+    bool    protocolPaused;       // VaultHub pause state
+    uint256 unhealthyVaults;      // Unhealthy vaults in 10-vault sample
+    uint256 totalShortfallShares; // Aggregate shortfall across sample
+    uint256 wstEthRate;           // Current wstETH/stETH exchange rate
+    uint256 totalPooledEther;     // Total ETH pooled in stETH protocol
+    uint256 shareRatioBps;        // Rate expressed in basis points
+    bool    valid;                // Snapshot validity flag
+}
 ```
 
-To deploy the trap, run the following commands:
+### Risk Detection (`shouldRespond()`)
+
+Four independent risk checks run on every snapshot:
+
+| Check | Signal | Threshold | Severity |
+|---|---|---|---|
+| **A — Bad Debt** | `badDebtToInternalize() > 0` | Any bad debt | 🔴 CRITICAL |
+| **B — Protocol Pause** | `isPaused()` state change | `false → true` | 🔴 CRITICAL |
+| **C — Vault Health** | Unhealthy vaults in sample | ≥ 2 of 10 (20%) | 🟠 HIGH |
+| **D — Rate Degradation** | wstETH/stETH rate drop | > 300 bps sustained | 🟠 HIGH |
+
+### Response Mapping
+
+Each check triggers a specific response function with relevant on-chain data:
+
+```
+Check A → recordBadDebt(vaultsCount, badDebt, timestamp)
+Check B → recordProtocolPause(vaultsCount, timestamp)
+Check C → recordVaultHealthDegradation(vaultsCount, unhealthyVaults, totalShortfallShares)
+Check D → recordRedemptionRateDrop(vaultsCount, wstEthRate, shareRatioBps)
+```
+
+---
+
+## 📊 Performance Stats
+
+From live dryrun on Hoodi testnet (block `2408084`):
+
+| Metric | Value |
+|---|---|
+| `collect()` gas used | 385,516 |
+| `shouldRespond()` gas used | 58,800 |
+| Accounts queried | 8 |
+| Storage slots queried | 65 |
+| Bootstrap duration | ~13s |
+| Runtime duration | ~625ms |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Foundry](https://getfoundry.sh) installed
+- [Drosera CLI](https://docs.drosera.io) installed
+- Hoodi testnet ETH (faucet: [hoodi.ethpandaops.io](https://hoodi.ethpandaops.io))
+
+### Installation
 
 ```bash
-# Compile the Trap
+git clone https://github.com/DAOmindbreaker/aegis-v3-sentinel.git
+cd aegis-v3-sentinel
+forge install
 forge build
-
-# Deploy the Trap
-DROSERA_PRIVATE_KEY=0x.. drosera apply
 ```
 
-After successfully deploying the trap, the CLI will add an `address` field to the `drosera.toml` file.
-
-Congratulations! You have successfully deployed your first trap!
-
-### Response Trap
-
-You can then update the trap by changing its logic and recompling it or changing the path field in the `drosera.toml` file to point to the Response Trap.
-
-The Response Trap is designed to trigger a response at a specific block number. To test the Response Trap, pick a future block number and update the Response Trap.
-Specify a response contract address and function signature in the drosera.toml file to the following:
-
-```toml
-response_contract = "0x183D78491555cb69B68d2354F7373cc2632508C7"
-response_function = "responseCallback(uint256)"
-```
-
-Finally, deploy the Response Trap by running the following commands:
+### Run Dryrun
 
 ```bash
-# Compile the Trap
-forge build
-
-# Deploy the Trap
-DROSERA_PRIVATE_KEY=0x.. drosera apply
+drosera dryrun
 ```
 
-> Note: The `DROSERA_PRIVATE_KEY` environment variable can be used to deploy traps. You can also set it in the drosera.toml file as `private_key = "0x.."`.
+Expected output:
+```
+should_respond: false   ← normal when protocol is healthy
+collect() gas used: 385,516
+shouldRespond() gas used: 58,800
+accounts queried: 8
+slots queried: 65
+```
 
-
-### Transfer Event Trap
-The TransferEventTrap is an example of how a Trap can parse event logs from a block and respond to a specific ERC-20 token transfer events.
-
-To deploy the Transfer Event Trap, uncomment the `transfer_event_trap` section in the `drosera.toml` file. Add the token address to the `tokenAddress` constant in the `TransferEventTrap.sol` file and then deploy the trap.
-
-### Alert Trap
-The AlertTrap is an example of how a Trap can parse event logs from a block and alert on a specific ERC-20 token transfer events.
-
-To deploy the Alert Trap, run the following commands:
+### Deploy Response Contract
 
 ```bash
-forge build
+export PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
-DROSERA_PRIVATE_KEY=0x.. drosera -c drosera.alerts.toml.j2 apply
+forge create src/AegisV3Response.sol:AegisV3Response \
+  --rpc-url https://ethereum-hoodi-rpc.publicnode.com \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --constructor-args YOUR_OPERATOR_ADDRESS
 ```
 
-> Note: The `.j2` file extension is used to indicate that the file is a jinja template and environment variables can be used in the file by wrapping them in `{{ env.VARIABLE_NAME }}`.
+### Configure & Apply Trap
 
-Once configured properly, you can test the alert integration by running the following command;
+Update `drosera.toml` with your deployed response contract address, then:
 
 ```bash
-DROSERA_PRIVATE_KEY=0x.. drosera -c drosera.alerts.toml.j2 send-test-alert --trap-name alert_trap
+export DROSERA_PRIVATE_KEY=$PRIVATE_KEY
+drosera apply
 ```
 
-This will run the tests and you should see the alert being triggered in the console.
+---
 
+## 📁 Project Structure
 
-## Testing
-
-Example tests are included in the `tests` directory. They simulate how Drosera Operators execute traps and determine if a response should be triggered. To run the tests, execute the following command:
-
-```bash
-forge test
 ```
+aegis-v3-sentinel/
+├── src/
+│   ├── AegisV3Sentinel.sol     # Main trap — data collection & risk detection
+│   └── AegisV3Response.sol     # Response contract — on-chain incident logging
+├── test/
+│   └── (tests coming soon)
+├── drosera.toml                # Trap configuration
+├── foundry.toml                # Foundry configuration
+└── README.md
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** this repository
+2. **Create** a feature branch: `git checkout -b feat/your-feature`
+3. **Build** and verify: `forge build` (must be zero warnings)
+4. **Dryrun** your changes: `drosera dryrun`
+5. **Commit** with clear message: `git commit -m "feat: describe your change"`
+6. **Open a Pull Request** with description of what was changed and why
+
+### Ideas for Contributions
+
+- [ ] Add `shouldAlert()` implementation for off-chain alerting
+- [ ] Expand vault sampling beyond 10 vaults (adaptive sampling)
+- [ ] Add Aave V3 integration for cross-protocol risk correlation
+- [ ] Add Uniswap V3 wstETH/ETH pool monitoring
+- [ ] Write comprehensive Foundry tests
+- [ ] Mainnet deployment configuration
+
+---
+
+## 📜 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## 🔗 Resources
+
+- [Drosera Network Docs](https://docs.drosera.io)
+- [Lido V3 Documentation](https://docs.lido.fi)
+- [VaultHub on Hoodi Explorer](https://hoodi.etherscan.io/address/0x4C9fFC325392090F789255b9948Ab1659b797964)
+- [Foundry Book](https://book.getfoundry.sh)
+
+---
+
+<p align="center">Built with ❤️ for the Drosera Network ecosystem</p>
