@@ -7,8 +7,8 @@ drosera_address = "0x91cB447BaFc6e0EA0F4Fe056F5a9b1F14bb06e5D"
 
 [traps.aegis_v3_sentinel]
 path = "out/AegisV3Sentinel.sol/AegisV3Sentinel.json"
-response_contract = "0x6A389da253A1D4B0fA5f5b0fe6843164398e9f45"
-response_function = "recordBadDebt(uint256,uint256,uint256)"
+response_contract = "0xEFB450504f7391dE6Fc64aA9c9234B50737C353c"
+response_function = "handleRisk(uint8,uint256,uint256,uint256)"
 cooldown_period_blocks = 33
 min_number_of_operators = 1
 max_number_of_operators = 2
